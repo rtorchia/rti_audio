@@ -16,6 +16,8 @@
 
 import groovy.json.*
 
+// icons at https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/rti_logo.png
+
 definition(
     name: "RTI Audio",
     namespace: "rtorchia",
@@ -28,113 +30,160 @@ definition(
     singleinstance: true
 
 preferences {
-//	page(name: "MainSetup")
-    section("RTI Audio Setup") {
-    	input(name: "deviceIP", type: "text", title: "IP Address", description: "The IP of your RTI audio distribution system (required)", required: true)
-        input(name: "maxZones", type: "number", title: "Max Zones", description: "Max number of zones system supports", range: "1...8", required: true)
+    section("RTI Audio Device Setup") {
+    	input(name: "deviceIP", type: "text", title: "IP Address", description: "The IP address of your RTI audio distribution system (required)", required: true)
+        input(name: "maxZones", type: "number", title: "Max Zones", description: "Max number of zones system supports (required)", defaultValue: "4", required: true)
 	}
-}
-
-def MainSetup() {
-	// todo
+    section("RTI Audio Source Names") {
+    	input(name: "s1Name", type: "text", title: "Source 1", defaultValue: "S1", required: false)
+    	input(name: "s2Name", type: "text", title: "Source 2", defaultValue: "S2", required: false)
+    	input(name: "s3Name", type: "text", title: "Source 3", defaultValue: "S3", required: false)
+    	input(name: "s4Name", type: "text", title: "Source 4", defaultValue: "S4", required: false)
+    }
 }
 
 def installed() {
-	log.debug "Installed with settings: ${settings}"
-    getcurrentconfig()
-    createZoneDevices()
+	//subscribeToEvents()
+    log.debug "Installed with settings: ${settings}"
+	mainSetup()
 	initialize()
 }
 
 def updated() {
 	log.debug "Updated with settings: ${settings}"
-    getcurrentconfig()
-    createZoneDevices()
-	unsubscribe()
+	mainSetup()
+    unsubscribe()
 	initialize()
 }
 
-def initialize() {
-	// todo	
+def mainSetup() {
+    defineZoneNames()
+    createZoneDevices()
+    getCurrentConfig()
 }
-// create zones for audio amp
+
+def uninstalled() {
+	removeZoneDevices()
+}
+
+def initialize() {
+	// set default source names if left empty
+}
+
+def defineZoneNames() {
+    if (s1Name == "") { s1Name = "S1" }
+	if (s2Name == "") { s2Name = "S2" }
+	if (s3Name == "") { s3Name = "S3" }
+	if (s4Name == "") { s4Name = "S4" }
+}    
+    
+// create zone devices
 def createZoneDevices() {
+   def deviceDNI = ""
    def zoneCounter = 0
-    4.times {
+   if (maxZones == null) { maxZones = 4 }
+   maxZones.times {
     	zoneCounter++
-    	def deviceDNI = "RTI Audio Zone ${zoneCounter}"
+    	deviceDNI = "RTI Audio Zone ${zoneCounter}"
     	def device = getChildDevice(deviceDNI)
     	log.debug "deviceDNI: ${deviceDNI}"
-        if (!device) device = addChildDevice("rtorchia", "RTI Audio Zone", deviceDNI, null, [label: deviceDNI])
+        if (!device) {
+        	device = addChildDevice("rtorchia", "RTI Audio Zone", deviceDNI, null, [label: deviceDNI])
+    		log.debug "Added zone device: ${device}"
+        }
     }
 }
 
-def getcurrentconfig() {
-    log.debug "Trying to access device at ${deviceIP}"
-    
-    def hubAction = new physicalgraph.device.HubAction(
-    	method: "GET",
-        path: "/rti_status.cgi",
-        headers: ["HOST": "${deviceIP}:80", "Content-Type": "text/xml; charset='utf-8'"],
-        null,[callback: parseStatus])
-    sendHubCommand(hubAction)
+// remove zone devices
+def removeZoneDevices() {
+	getAllChildDevices().each { deleteChildDevice(it.deviceNetworkId) }
 }
 
-def parseStatus(physicalgraph.device.HubResponse hubResponse) {
-    def i = 0
+// get zone configuration of audio device
+def getCurrentConfig() {
+    log.debug "Trying to access device at ${deviceIP}"
+    def hubAction = new physicalgraph.device.HubAction(
+   		method: "GET",
+       	path: "/rti_status.cgi",
+   	 	headers: ["HOST": "${deviceIP}:80", "Content-Type": "text/xml; charset='utf-8'"],
+   	 	null,[callback: updateZoneStatus])
+   	sendHubCommand(hubAction)
+}
+
+// setup devices with config from RTI
+def updateZoneStatus(physicalgraph.device.HubResponse hubResponse) {
     def config = hubResponse.body.replaceAll("<!--#...-->", "")
     def slurper = new JsonSlurper()
     def json = slurper.parseText(config)
-    // Setup of response from device is Zones: {Zone: {grp, mut, pwr, src, vol} }
+    
     //log.info "Source: ${json.zones.zone.src}"
     //log.info "Power : ${json.zones.zone.pwr}"
     //log.info "Volume: ${json.zones.zone.vol}"
     //log.info "Mute  : ${json.zones.zone.mut}"
     //log.info "Group : ${json.zones.zone.grp}"
-    //for (i = 0; i < maxZones; i++) {
-    //	def zsource = json.zones.zone[i].vol
-    //    log.info "Volume ${i}: ${zsource}"
-    //}
-}         
-        
-def installzones () {
-	// todo
-}
+    // to access the key of each zone use -> json.zones.zone[i].vol
+	
+    def deviceDNI = ""
+    def zoneNumber = 0
+	def sourceName = ""
+    
+    maxZones.times {
+    	zoneNumber++
+    	deviceDNI = "RTI Audio Zone ${zoneNumber}"
+    	def device = getChildDevice(deviceDNI)
+    	log.debug "Settings for deviceDNI: ${deviceDNI}"
 
-def sendcmd(rti_attr, rti_zone, rti_status) {
+		if (json.zones.zone[zoneNumber-1].src == "1") { sourceName = s1Name }
+        else if (json.zones.zone[zoneNumber-1].src == "2") { sourceName = s2Name }
+        else if (json.zones.zone[zoneNumber-1].src == "3") { sourceName = s3Name }
+        else if (json.zones.zone[zoneNumber-1].src == "4") { sourceName = s4Name }
+        else { sourceName = "None" }
+        
+        if (device) {
+        	device.setZoneSettings(json.zones.zone[zoneNumber-1], sourceName)
+    		log.debug "Sent update to zone device: ${device} : ${json.zones.zone[zoneNumber-1]} : ${sourceName}"
+        }
+	}
+
+}         
+
+// send RTI device changes to zones
+def sendCommand(rtidata, rtizone) {
 	// send cmd to RTI device to change attribute
     def rti_cmd = ""
-	if (rti_attr == "source") {
-		// rti_zi.cgi?z= &i=
-        rti_cmd = "/rti.zi.cgi?z=${rti_zone}&i=${rti_status}&s=0"
-	} else if (rti_attr == "volume") {
-    	// rti_zvs.cgi?z= &v=
-        rti_cmd = "/rti.zvs.cgi?z=${rti_zone}&v=${rti_status}&s=0"
-	} else if (rti_attr == "group") {
-    	// rti_zg.cgi?z &g=    
-        rti_cmd = "/rti.zg.cgi?z=${rti_zone}&g=${rti_status}&s=0"
-    } else if (rti_attr == "power") {
-    	// rti_zp0.cgi?z= , rti_zp1.cgi?z=
-        if (rti_status == "0") {
-        	rti_cmd = "/rti.zp0.cgi?z=${rti_zone}&s=0"
+	    
+    if (rtidata.containsKey("source")) {
+    	rti_cmd = "/rti_zi.cgi?z=${rtizone}&i=${rtidata.source}&s=0"
+    }
+    else if (rtidata.containsKey("volume")) {
+        def vol = Math.round((rtidata.volume.toInteger()/1.33)-75)
+        rti_cmd = "/rti_zvs.cgi?z=${rtizone}&v=${vol}&s=0"
+    }
+    else if (rtidata.containsKey("power")) {
+        if (rtidata.power == "0") {
+        	rti_cmd = "/rti_zp0.cgi?z=${rtizone}&s=0"
         } else {
-        	rti_cmd = "/rti.zp1.cgi?z=${rti_zone}&s=0"
-        }
-    } else if (rti_attr == "mute") {
-    	// rti_zm0.cgi?z= , rti_zm1.cgi?z=
-        if (rti_status == "0") {
-        	rti_cmd = "/rti.zm0.cgi?z=${rti_zone}&s=0"
-        } else {
-        	rti_cmd = "/rti.zm1.cgi?z=${rti_zone}&s=0"
+        	rti_cmd = "/rti_zp1.cgi?z=${rtizone}&s=0"
         }
     }
-	
-	log.debug "Trying to access device at ${deviceIP}"
+    else if (rtidata.containsKey("mute")) {
+        if (rtidata.mute == "0") {
+        	rti_cmd = "/rti_zm0.cgi?z=${rtizone}&s=0"
+        } else {
+        	rti_cmd = "/rti_zm1.cgi?z=${rtizone}&s=0"
+        }
+    }
+    else if (rtidata.containsKey("group")) {
+        rti_cmd = "/rti_zg.cgi?z=${rti_zone}&g=${rtidata.group}&s=0"
+    }
+   
+	log.debug "Sending to audio device at ${deviceIP} <${rtizone}> with ${rti_cmd}"
     
     def result = new physicalgraph.device.HubAction(
     	method: "GET",
         path: "${rti_cmd}",
         headers: ["HOST": "${deviceIP}:80", "Content-Type": "text/xml; charset='utf-8'"],
         null,[callback: parseStatus])
-    sendHubCommand(result)    
+    sendHubCommand(result)
+    getCurrentConfig()
 }

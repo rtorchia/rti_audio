@@ -1,6 +1,4 @@
 /**
- *  Copyright 2015 SmartThings
- *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
  *
@@ -10,9 +8,6 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  Sonos Player
- *
- *  Author: SmartThings/**
  *  RTI Audio Zone
  *
  *  Copyright 2020 Ralph Torchia
@@ -29,140 +24,120 @@
 metadata {
 	definition (name: "RTI Audio Zone", namespace: "rtorchia", author: "Ralph Torchia") {
         capability "Actuator"
+        capability "Music Player"
 		capability "Switch"
         capability "Switch Level"
-		capability "Refresh"
-		capability "Music Player"
+        capability "Sensor"
+//		capability "Polling"
+//		capability "Refresh"
+	    
+ 		command "muteOn"
+        command "muteOff"
+    	command "source1"
+        command "source2"
+        command "source3"
+        command "source4"
+        command "status"
+        command "setZoneSettings"
+    }
         
-        command "powerOff"
-        command "powerOn"
-        command "muter"
-        command "zone1on"
-        command "zone2on"
-        command "zone3on"
-        command "zone4on"
-	}
-        
-	simulator {
-		// testing code
-	}
-
 	tiles(scale: 2) {
-		multiAttributeTile(name: "powerTile", type: "generic", width:6, height:4) {
-			tileAttribute("device.switch", key: "PRIMARY_CONTROL") {
-				attributeState "powerOn", label:"On", icon: "st.Entertainment.entertainment11", action: "powerOff", nextState: "off"
-				attributeState "powerOff", label:"Off", icon: "st.Entertainment.entertainment11", action: "powerOn", nextState: "on"
-			}
-        }
-		multiAttributeTile(name: "volumeTile", type: "generic", width:6, height:4) {
-            tileAttribute("device.switch", key: "PRIMARY_CONTROL") {
-				attributeState "on", label:"On", nextState: "off"
-				attributeState "off", label:"Off", nextState: "on"
+     	multiAttributeTile(name:"power", type:"generic", width:6, height:4) {
+        	tileAttribute("device.switch", key:"PRIMARY_CONTROL") {
+            	attributeState ("on",  label: "On",  action: "switch.off", icon: "st.Electronics.electronics16", backgroundColor: "#79b821", nextState: "off")
+        		attributeState ("off", label: "Off", action: "switch.on",  icon: "st.Electronics.electronics16", backgroundColor: "#ffffff", nextState: "on")
             }
-            tileAttribute("device.level", key: "SECONDARY_CONTROL") {
-            	attributeState "level", icon: "st.Weather.weather1", action: "muter"
-            }
-            tileAttribute("device.level", key: "SLIDER_CONTROL") {
-				attributeState "level", action:"setLevel"
-			}
-			tileAttribute("device.mute", key: "MEDIA_MUTED") {
-				attributeState "unmuted", icon: "st.custom.sonos.unmuted", action: "unmuted", nextState: "muted"
-				attributeState "muted", icon: "st.custom.sonos.muted", action: "muted", nextState: "unmuted"
-			}
-        }
-        standardTile("zone1", "device.switch", width: 1, height: 2) {
-    		state "off", label: "off", icon: "st.unknown.thing.thing-circle", backgroundColor: "#ffffff", action: "zone1on"
-    		state "on", label: "on", icon: "st.unknown.thing.thing-circle", backgroundColor: "#00a0dc", action: "zone1on"
-        }
-        standardTile("zone2", "device.switch", width: 1, height: 2) {
-    		state "off", label: "off", icon: "st.unknown.thing.thing-circle", backgroundColor: "#ffffff", action: "zone2on"
-    		state "on", label: "on", icon: "st.unknown.thing.thing-circle", backgroundColor: "#00a0dc", action: "zone2on"
-        }
-        standardTile("zone3", "device.switch", width: 1, height: 2) {
-    		state "off", label: "off", icon: "st.unknown.thing.thing-circle", backgroundColor: "#ffffff", action: "zone3on"
-    		state "on", label: "on", icon: "st.switches.switch.on", backgroundColor: "#00a0dc", action: "zone3on"
-        }
-        standardTile("zone4", "device.switch", width: 1, height: 2) {
-    		state "off", label: "off", icon: "st.unknown.thing.thing-circle", backgroundColor: "#ffffff", action: "zone4on"
-    		state "on", label: "on", icon: "st.unknown.thing.thing-circle", backgroundColor: "#00a0dc", action: "zone4on"
-        }
-        
-		main(["powerTile"])
-  		details(["powerTile", "volumeTile", "zone1","zone2","zone3","zone4"])
+      		tileAttribute ("source", key: "SECONDARY_CONTROL") {
+        		attributeState "source", label:'${currentValue}'
+      		}
+		}        
+    	controlTile ("volume", "device.volume", "slider", height: 1, width: 6, range: "(0..100)") {
+      		state ("volume", label: "Volume", action: "music Player.setLevel", backgroundColor: "#00a0dc")
+    	}
+        standardTile ("mute", "device.mute", decoration: "flat", width: 2, height: 2) {
+      		state ("off", label:"Unmuted", action: "muteOn", icon: "https://raw.githubusercontent.com/redloro/smartthings/master/images/indicator-dot-loudness.png", backgroundColor: "#ffffff")
+      		state ("on", label:"Muted", action: "muteOff", icon: "https://raw.githubusercontent.com/redloro/smartthings/master/images/indicator-dot-gray.png", backgroundColor: "#ffffff")
+    	}
+    	standardTile ("1", "device.source1", decoration: "flat", width: 2, height: 2) {
+      		state ("off", label: "Source 1", action: "source1", icon: "https://raw.githubusercontent.com/redloro/smartthings/master/images/indicator-dot-gray.png", backgroundColor: "#ffffff")
+      		state ("on", label: "Source 1", action: "source1", icon: "https://raw.githubusercontent.com/redloro/smartthings/master/images/indicator-dot-green.png", backgroundColor: "#ffffff")
+    	}
+    	standardTile ("2", "device.source2", decoration: "flat", width: 2, height: 2) {
+      		state ("off", label: "Source 2", action:"source2", icon: "https://raw.githubusercontent.com/redloro/smartthings/master/images/indicator-dot-gray.png", backgroundColor: "#ffffff")
+      		state ("on", label: "Source 2", action:"source2", icon: "https://raw.githubusercontent.com/redloro/smartthings/master/images/indicator-dot-green.png", backgroundColor: "#ffffff")
+    	}
+    	standardTile ("3", "device.source3", decoration: "flat", width: 2, height: 2) {
+      		state ("off", label: "Source 3", action: "source3", icon: "https://raw.githubusercontent.com/redloro/smartthings/master/images/indicator-dot-gray.png", backgroundColor: "#ffffff")
+    	  	state ("on", label: "Source 3", action: "source3", icon: "https://raw.githubusercontent.com/redloro/smartthings/master/images/indicator-dot-green.png", backgroundColor: "#ffffff")
+    	}
+    	standardTile ("4", "device.source4", decoration: "flat", width: 2, height: 2) {
+      		state ("off", label: "Source 4", action: "source4", icon: "https://raw.githubusercontent.com/redloro/smartthings/master/images/indicator-dot-gray.png", backgroundColor: "#ffffff")
+    	  	state ("on", label: "Source 4", action: "source4", icon: "https://raw.githubusercontent.com/redloro/smartthings/master/images/indicator-dot-green.png", backgroundColor: "#ffffff")
+    	}
+        standardTile ("refresh", "device.status", width: 2, height: 2, inactiveLabel: false, decoration: "flat") {
+      		state ("default", label: "Refresh", action: "status", icon: "st.secondary.refresh-icon", backgroundColor: "#ffffff")
+    	}
+
+		main "power"
+  		details (["power", "volume", "mute", "1", "2", "3", "4", "refresh"])
 	}
 }
 
-// parse events into attributes
-def parse(String description) {
-	log.debug "Parsing '${description}'"
-	// TODO: handle 'activities' attribute
-	// TODO: handle 'currentActivity' attribute
-	// TODO: handle 'inputSource' attribute
-	// TODO: handle 'supportedInputSources' attribute
-	// TODO: handle 'playbackStatus' attribute
-	// TODO: handle 'supportedPlaybackCommands' attribute
+// map metadata to action calls
+def on() { sendCommand(["power": "1"]) }
+def off() { sendCommand(["power": "0"]) }
+def source1() { sendCommand(["source": "1"]) }
+def source2() { sendCommand(["source": "2"]) }
+def source3() { sendCommand(["source": "3"]) }
+def source4() { sendCommand(["source": "4"]) }
+def setLevel(value) { sendCommand(["volume": "${value}"]) }
+def muteOn() { sendCommand(["mute": "1"]) }
+def muteOff() { sendCommand(["mute":"0"]) }
+
+// Refresh tiles every 10 minutes
+def status() {
+	parent.getCurrentConfig()
 }
 
-def installed() {
-	sendEvent(name: "level", value: 50)
-	sendEvent(name: "mute", value: "unmuted")
-	sendEvent(name: "status", value: "on")
-    zoneAlloff()
-    sendEvent(name: "zone1", value: "on")
+def setZoneSettings(evt, name) {
+    log.debug "Received update data: ${evt}, ${name}"
+    
+    if (name == "") { name = "None" }
+    
+    if (evt.containsKey("pwr")) {
+		sendEvent(name: "switch", value: (evt.pwr == "1") ? "on" : "off")
+    }
+	if (evt.containsKey("vol")) {
+    	log.debug "Set Volume to ${evt.vol}"
+        def vol = Math.round(((evt.vol.toInteger()*1.33)-100)*-1)
+        sendEvent(name: "volume", value: vol)
+    }
+    if (evt.containsKey("mut")) {
+    	sendEvent(name:"mute", value: (evt.mut == "1") ? "on":"off")
+    }
+    if (evt.containsKey("src")) {
+    	log.debug "Zone source ${evt.src}"
+        for (def i = 1; i < 5; i++) {
+            if (i == evt.src.toInteger()) {
+   	        	state.source = i
+                sendEvent(name: "source${i}", value: "on")
+            	sendEvent(name: "source", value: "Source: ${i}: ${name}")
+            }
+            else {
+            	sendEvent(name: "source${i}", value: "off")
+            }
+        }
+    }
 }
 
-// handle commands
-def muted() {
-	log.debug "Muted"
-	sendEvent(name: "mute", value: "muted")
-}
+private def sendCommand(data) {
+	def zone = ""
+    def deviceNI = device.label
+    zone = deviceNI.substring(deviceNI.size()-1)
 
-def unmuted() {
-	log.debug "Unmuted"
-	sendEvent(name: "mute", value: "unmuted")
-}
-
-def setLevel(level) {
-	int vol
-    vol = level/1.33
-    log.debug "Volume: (-${vol}) ${level}%"
-    sendEvent(name: "level", value: level)
-}
-
-def powerOn() {
-	log.debug "Zone On"
-	sendEvent(name: "power", value="on")
-}
-
-def powerOff() {
-	log.debug "Zone Off"
-	sendEvent(name: "power", value="off")
-}
-
-def zone1on() {
-	zoneAlloff()
-    log.debug "Zone 1 On"
-	sendEvent(name: "zone1", value="on")
-}
-def zone2on() {
-	zoneAlloff()
-	log.debug "Zone 2 On"
-    sendEvent(name: "zone2", value="on")
-}
-def zone3on() {
-	zoneAlloff()
-	log.debug "Zone 3 On"
-    sendEvent(name: "zone3", value="on")
-}
-def zone4on() {
-	zoneAlloff()
-	log.debug "Zone 4 On"
-	sendEvent(name: "zone4", value="on")
-}
-
-def zoneAlloff() {
-  	sendEvent(name: "zone1", value="off")
-    sendEvent(name: "zone2", value="off")
-    sendEvent(name: "zone3", value="off")
-    sendEvent(name: "zone4", value="off")
+	log.debug "DTH > sendCommand(${data}, ${zone})"
+    
+    if (data == "") { data = ["refresh":"0"]}
+    
+    parent.sendCommand(data, zone)
 }

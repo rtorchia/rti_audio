@@ -24,10 +24,11 @@ definition(
     author: "Ralph Torchia",
     description: "Integrate and control RTI audio distribution system",
     category: "My Apps",
-    iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
-    iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png",
-    iconX3Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png")
+    iconUrl: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/rti_logo.png",
+    iconX2Url: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/rti_logo.png",
+    iconX3Url: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/rti_logo.png",
     singleinstance: true
+)
 
 preferences {
     section("RTI Audio Device Setup") {
@@ -35,22 +36,21 @@ preferences {
         input(name: "maxZones", type: "number", title: "Max Zones", description: "Max number of zones system supports (required)", defaultValue: "4", required: true)
 	}
     section("RTI Audio Source Names") {
-    	input(name: "s1Name", type: "text", title: "Source 1", defaultValue: "S1", required: false)
-    	input(name: "s2Name", type: "text", title: "Source 2", defaultValue: "S2", required: false)
-    	input(name: "s3Name", type: "text", title: "Source 3", defaultValue: "S3", required: false)
-    	input(name: "s4Name", type: "text", title: "Source 4", defaultValue: "S4", required: false)
+    	input(name: "s1Name", type: "text", title: "Source 1", required: false)
+    	input(name: "s2Name", type: "text", title: "Source 2", required: false)
+    	input(name: "s3Name", type: "text", title: "Source 3", required: false)
+    	input(name: "s4Name", type: "text", title: "Source 4", required: false)
     }
 }
 
 def installed() {
 	//subscribeToEvents()
-    log.debug "Installed with settings: ${settings}"
-	mainSetup()
+	atomicState.zoneList = [:]
+    mainSetup()
 	initialize()
 }
 
 def updated() {
-	log.debug "Updated with settings: ${settings}"
 	mainSetup()
     unsubscribe()
 	initialize()
@@ -63,7 +63,8 @@ def mainSetup() {
 }
 
 def uninstalled() {
-	removeZoneDevices()
+	atomicState.zoneList = [:]
+    removeZoneDevices()
 }
 
 def initialize() {
@@ -71,16 +72,17 @@ def initialize() {
 }
 
 def defineZoneNames() {
-    if (s1Name == "") { s1Name = "S1" }
-	if (s2Name == "") { s2Name = "S2" }
-	if (s3Name == "") { s3Name = "S3" }
-	if (s4Name == "") { s4Name = "S4" }
+    if (s1Name == "") { s1Name = "Unknown" }
+	if (s2Name == "") { s2Name = "Unknown" }
+	if (s3Name == "") { s3Name = "Unknown" }
+	if (s4Name == "") { s4Name = "Unknown" }
 }    
     
 // create zone devices
 def createZoneDevices() {
    def deviceDNI = ""
    def zoneCounter = 0
+   def temp = atomicState.zoneList
    if (maxZones == null) { maxZones = 4 }
    maxZones.times {
     	zoneCounter++
@@ -89,9 +91,12 @@ def createZoneDevices() {
     	log.debug "deviceDNI: ${deviceDNI}"
         if (!device) {
         	device = addChildDevice("rtorchia", "RTI Audio Zone", deviceDNI, null, [label: deviceDNI])
-    		log.debug "Added zone device: ${device}"
+    		temp[device.id] = zoneCounter
+            log.debug "Added zone device: ${device} and map ${temp}"
         }
     }
+	atomicState.zoneList = temp
+    log.debug "atomicstate: ${atomicState.zoneList}"
 }
 
 // remove zone devices
@@ -101,7 +106,7 @@ def removeZoneDevices() {
 
 // get zone configuration of audio device
 def getCurrentConfig() {
-    log.debug "Trying to access device at ${deviceIP}"
+    log.debug "Trying to access device config at ${deviceIP}"
     def hubAction = new physicalgraph.device.HubAction(
    		method: "GET",
        	path: "/rti_status.cgi",
@@ -121,37 +126,40 @@ def updateZoneStatus(physicalgraph.device.HubResponse hubResponse) {
     //log.info "Volume: ${json.zones.zone.vol}"
     //log.info "Mute  : ${json.zones.zone.mut}"
     //log.info "Group : ${json.zones.zone.grp}"
-    // to access the key of each zone use -> json.zones.zone[i].vol
+    // to access the key of each zone use, example, -> json.zones.zone[i].vol
 	
     def deviceDNI = ""
-    def zoneNumber = 0
-	def sourceName = ""
+    int zoneNumber = 0
     
     maxZones.times {
     	zoneNumber++
     	deviceDNI = "RTI Audio Zone ${zoneNumber}"
     	def device = getChildDevice(deviceDNI)
-    	log.debug "Settings for deviceDNI: ${deviceDNI}"
-
-		if (json.zones.zone[zoneNumber-1].src == "1") { sourceName = s1Name }
-        else if (json.zones.zone[zoneNumber-1].src == "2") { sourceName = s2Name }
-        else if (json.zones.zone[zoneNumber-1].src == "3") { sourceName = s3Name }
-        else if (json.zones.zone[zoneNumber-1].src == "4") { sourceName = s4Name }
-        else { sourceName = "None" }
         
         if (device) {
-        	device.setZoneSettings(json.zones.zone[zoneNumber-1], sourceName)
-    		log.debug "Sent update to zone device: ${device} : ${json.zones.zone[zoneNumber-1]} : ${sourceName}"
+        	device.setZoneSettings(json.zones.zone[zoneNumber-1], getSourceName(json.zones.zone[zoneNumber-1].src))
+            log.debug "Sent new config to ${device} : ${json.zones.zone[zoneNumber-1]}"
         }
 	}
 
 }         
 
+def getSourceName(source) {
+	def sourceName = "None"
+    if (source == "1") { sourceName = s1Name }
+    else if (source == "2") { sourceName = s2Name }
+    else if (source == "3") { sourceName = s3Name }
+    else if (source == "4") { sourceName = s4Name }
+    return sourceName
+}
+
 // send RTI device changes to zones
-def sendCommand(rtidata, rtizone) {
-	// send cmd to RTI device to change attribute
+def sendCommand(rtidata, dni) {
     def rti_cmd = ""
-	    
+	def rtizone = atomicState.zoneList[dni]
+    
+    log.debug "ID: ${dni}, ZoneList: ${atomicState.zoneList}"
+    
     if (rtidata.containsKey("source")) {
     	rti_cmd = "/rti_zi.cgi?z=${rtizone}&i=${rtidata.source}&s=0"
     }
@@ -177,13 +185,13 @@ def sendCommand(rtidata, rtizone) {
         rti_cmd = "/rti_zg.cgi?z=${rti_zone}&g=${rtidata.group}&s=0"
     }
    
-	log.debug "Sending to audio device at ${deviceIP} <${rtizone}> with ${rti_cmd}"
-    
-    def result = new physicalgraph.device.HubAction(
+    def hubAction = new physicalgraph.device.HubAction(
     	method: "GET",
         path: "${rti_cmd}",
-        headers: ["HOST": "${deviceIP}:80", "Content-Type": "text/xml; charset='utf-8'"],
-        null,[callback: parseStatus])
-    sendHubCommand(result)
-    getCurrentConfig()
+        headers: ["HOST": "${deviceIP}:80", "Content-Type": "text/xml; charset='utf-8'"])
+    sendHubCommand(hubAction)
+    
+    log.debug "Sent device new status command ${rti_cmd}"
+    
+    // getCurrentConfig()
 }

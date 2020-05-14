@@ -1,4 +1,4 @@
-/**
+/*
  *  RTI Audio
  *
  *  Copyright 2020 Ralph Torchia
@@ -15,8 +15,6 @@
  */
 
 import groovy.json.*
-
-// icons at https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/rti_logo.png
 
 definition(
     name: "RTI Audio",
@@ -154,7 +152,7 @@ def getSourceName(source) {
     return sourceName
 }
 
-// send RTI device changes to zones
+// send updates to RTI audio device 
 def sendCommand(rtidata, dni) {
     def rti_cmd = ""
 	def rtizone = atomicState.zoneList[dni]
@@ -165,7 +163,6 @@ def sendCommand(rtidata, dni) {
     	rti_cmd = "/rti_zi.cgi?z=${rtizone}&i=${rtidata.source}&s=0"
     }
     else if (rtidata.containsKey("volume")) {
-        // def vol = Math.round((rtidata.volume.toInteger()/1.33)-75)
         def vol = Math.round(((rtidata.volume.toInteger()/100)-1)*75)
         rti_cmd = "/rti_zvs.cgi?z=${rtizone}&v=${vol}&s=0"
     }

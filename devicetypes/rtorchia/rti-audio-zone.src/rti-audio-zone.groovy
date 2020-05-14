@@ -22,22 +22,29 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 metadata {
-	definition (name: "RTI Audio Zone", namespace: "rtorchia", author: "Ralph Torchia") {
+	definition (
+        name:       "RTI Audio Zone", 
+        namespace:  "rtorchia", 
+        author:     "Ralph Torchia",		
+	)
+    
+    {
         capability "Actuator"
-        capability "Music Player"
 		capability "Switch"
-        capability "Switch Level"
         capability "Sensor"
-//		capability "Polling"
-//		capability "Refresh"
-	    
- 		command "muteOn"
+		capability "Audio Mute"
+        capability "Audio Volume"
+        capability "Media Controller"
+        capability "Media Input Source"
+        capability "Refresh"
+
+ 		command "setLevel"
+        command "muteOn"
         command "muteOff"
     	command "source1"
         command "source2"
         command "source3"
         command "source4"
-        command "getStatus"
         command "setZoneSettings"
     }
         
@@ -47,16 +54,19 @@ metadata {
             	attributeState ("on",  label: "On",  action: "switch.off", icon: "st.Electronics.electronics16", backgroundColor: "#79b821")
         		attributeState ("off", label: "Off", action: "switch.on",  icon: "st.Electronics.electronics16", backgroundColor: "#ffffff")
             }
-      		tileAttribute ("source", key: "SECONDARY_CONTROL") {
+      		tileAttribute ("device.source", key: "SECONDARY_CONTROL") {
         		attributeState "source", label:'${currentValue}'
       		}
 		}        
-    	controlTile ("volume", "device.volume", "slider", height: 1, width: 6, range: "(0..100)") {
-      		state ("volume", label: "Volume", action: "music Player.setLevel", backgroundColor: "#00a0dc")
+        valueTile ("volumeLabel", "device.volumeLabel", decoration: "flat", height: 1, width: 2) {
+      		state ("volumeLabel", label: "Volume :")
+    	}
+        controlTile ("volume", "device.volume", "slider", height: 1, width: 4, range: "(0..100)") {
+      		state ("volume", label: "Volume", action: "setLevel", unit: "%", backgroundColor: "#00a0dc")
     	}
         standardTile ("mute", "device.mute", decoration: "flat", width: 2, height: 2) {
-      		state ("off", label:"Unmuted", action: "muteOn", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/mute-off.png", backgroundColor: "#ffffff")
-      		state ("on", label:"Muted", action: "muteOff", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/mute-on.png", backgroundColor: "#ffffff")
+      		state ("unmuted", label:"Unmuted", action: "muteOn", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/mute-off.png", backgroundColor: "#ffffff")
+      		state ("muted", label:"Muted", action: "muteOff", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/mute-on.png", backgroundColor: "#ffffff")
     	}
     	standardTile ("1", "device.source1", decoration: "flat", width: 2, height: 2) {
       		state ("off", label: "Source 1", action: "source1", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/indicator-dot-gray.png", backgroundColor: "#ffffff")
@@ -74,12 +84,14 @@ metadata {
       		state ("off", label: "Source 4", action: "source4", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/indicator-dot-gray.png", backgroundColor: "#ffffff")
     	  	state ("on", label: "Source 4", action: "source4", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/indicator-dot-green.png", backgroundColor: "#ffffff")
     	}
-        standardTile ("refresh", "device.getStatus", width: 2, height: 2, inactiveLabel: false, decoration: "flat") {
-      		state ("default", label: "Refresh", action: "getStatus", icon: "st.secondary.refresh-icon", backgroundColor: "#ffffff")
-    	}
-
+//        standardTile ("refresh", "device.getStatus", width: 2, height: 2, inactiveLabel: false, decoration: "flat") {
+//      		state ("default", label: "Refresh", action: "getStatus", icon: "st.secondary.refresh-icon", backgroundColor: "#ffffff")
+//    	}
+		standardTile("refresh", "device.refresh", width: 2, height: 2, decoration: "flat") {
+        	state "default", label:"Refresh", action:"refresh.refresh", icon:"st.secondary.refresh-icon"
+        }
 		main "power"
-  		details (["power", "volume", "mute", "1", "2", "3", "4", "refresh"])
+  		details (["power", "volumeLabel", "volume", "mute", "1", "2", "3", "4", "refresh"])
 	}
 }
 
@@ -110,22 +122,22 @@ def source4() {
 }
 def setLevel(value) {
 	sendCommand(["volume": "${value}"])
-	sendEvent(name: "volume", value: value)
+    sendEvent(name:"volume", value: value)
 }
 def muteOn() {
 	sendCommand(["mute": "1"])
-	sendEvent(name:"mute", value: "on")
+	sendEvent(name:"mute", value: "muted")
 }
 def muteOff() {
 	sendCommand(["mute":"0"])
-   	sendEvent(name:"mute", value: "off")
+   	sendEvent(name:"mute", value: "unmuted")
 }
 
-// Refresh tile
-def getStatus() {
+def refresh() {
 	log.debug "Retrieving status update"
     parent.getCurrentConfig()
 }
+
 
 def setZoneSettings(evt, name) {
     log.debug "Received update config: ${evt}, ${name}"
@@ -134,7 +146,8 @@ def setZoneSettings(evt, name) {
 		sendEvent(name: "switch", value: ((evt.pwr == "1") ? "on" : "off"))
     }
 	if (evt.containsKey("vol")) {
-        def vol = Math.round(((evt.vol.toInteger()*1.33)-100)*-1)
+        // def vol = Math.round(((evt.vol.toInteger()*1.33)-100)*-1)
+        def vol = Math.round((1-(evt.vol.toInteger()/75))*100)
         sendEvent(name: "volume", value: vol)
     }
     if (evt.containsKey("mut")) {

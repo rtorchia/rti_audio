@@ -60,6 +60,7 @@ def mainSetup() {
     defineZoneNames()
     createZoneDevices()
     getCurrentConfig()
+//    runEvery30Minutes(getCurrentConfig())
 }
 
 def uninstalled() {
@@ -164,7 +165,8 @@ def sendCommand(rtidata, dni) {
     	rti_cmd = "/rti_zi.cgi?z=${rtizone}&i=${rtidata.source}&s=0"
     }
     else if (rtidata.containsKey("volume")) {
-        def vol = Math.round((rtidata.volume.toInteger()/1.33)-75)
+        // def vol = Math.round((rtidata.volume.toInteger()/1.33)-75)
+        def vol = Math.round(((rtidata.volume.toInteger()/100)-1)*75)
         rti_cmd = "/rti_zvs.cgi?z=${rtizone}&v=${vol}&s=0"
     }
     else if (rtidata.containsKey("power")) {

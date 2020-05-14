@@ -34,11 +34,10 @@ metadata {
         capability "Sensor"
 		capability "Audio Mute"
         capability "Audio Volume"
-        capability "Media Controller"
         capability "Media Input Source"
         capability "Refresh"
 
- 		command "setLevel"
+ 		command "setVolume"
         command "muteOn"
         command "muteOff"
     	command "source1"
@@ -62,7 +61,7 @@ metadata {
       		state ("volumeLabel", label: "Volume :")
     	}
         controlTile ("volume", "device.volume", "slider", height: 1, width: 4, range: "(0..100)") {
-      		state ("volume", label: "Volume", action: "setLevel", unit: "%", backgroundColor: "#00a0dc")
+      		state ("volume", label: "Volume", action: "setVolume", unit: "%", backgroundColor: "#00a0dc")
     	}
         standardTile ("mute", "device.mute", decoration: "flat", width: 2, height: 2) {
       		state ("unmuted", label:"Unmuted", action: "muteOn", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/mute-off.png", backgroundColor: "#ffffff")
@@ -90,7 +89,7 @@ metadata {
 		standardTile("refresh", "device.refresh", width: 2, height: 2, decoration: "flat") {
         	state "default", label:"Refresh", action:"refresh.refresh", icon:"st.secondary.refresh-icon"
         }
-		main "power"
+		main "switch"
   		details (["power", "volumeLabel", "volume", "mute", "1", "2", "3", "4", "refresh"])
 	}
 }
@@ -98,46 +97,45 @@ metadata {
 // map metadata to action calls
 def on() {
 	sendCommand(["power": "1"])
-    setZoneSettings(["pwr":"1"], null)
+    setZoneSettings(["pwr": "1"], null)
 }
 def off() {
 	sendCommand(["power": "0"])
-    setZoneSettings(["pwr":"0"], null)
+    setZoneSettings(["pwr": "0"], null)
 }
 def source1() {
 	sendCommand(["source": "1"])
-    setZoneSettings(["src":"1"], parent.getSourceName("1"))
+    setZoneSettings(["src": "1"], parent.getSourceName("1"))
 }
 def source2() {
 	sendCommand(["source": "2"])
-    setZoneSettings(["src":"2"], parent.getSourceName("2"))
+    setZoneSettings(["src": "2"], parent.getSourceName("2"))
 }
 def source3() {
 	sendCommand(["source": "3"])
-    setZoneSettings(["src":"3"], parent.getSourceName("3"))
+    setZoneSettings(["src": "3"], parent.getSourceName("3"))
 }
 def source4() {
 	sendCommand(["source": "4"])
-    setZoneSettings(["src":"4"], parent.getSourceName("4"))
+    setZoneSettings(["src": "4"], parent.getSourceName("4"))
 }
-def setLevel(value) {
+def setVolume(value) {
 	sendCommand(["volume": "${value}"])
-    sendEvent(name:"volume", value: value)
+    setZoneSettings(["vol": "${value}"], null)
 }
 def muteOn() {
 	sendCommand(["mute": "1"])
-	sendEvent(name:"mute", value: "muted")
+    setZoneSettings(["mut": "1"], null)
 }
 def muteOff() {
 	sendCommand(["mute":"0"])
-   	sendEvent(name:"mute", value: "unmuted")
+    setZoneSettings(["mut": "0"], null)
 }
 
 def refresh() {
 	log.debug "Retrieving status update"
     parent.getCurrentConfig()
 }
-
 
 def setZoneSettings(evt, name) {
     log.debug "Received update config: ${evt}, ${name}"
@@ -146,12 +144,11 @@ def setZoneSettings(evt, name) {
 		sendEvent(name: "switch", value: ((evt.pwr == "1") ? "on" : "off"))
     }
 	if (evt.containsKey("vol")) {
-        // def vol = Math.round(((evt.vol.toInteger()*1.33)-100)*-1)
         def vol = Math.round((1-(evt.vol.toInteger()/75))*100)
         sendEvent(name: "volume", value: vol)
     }
     if (evt.containsKey("mut")) {
-    	sendEvent(name:"mute", value: ((evt.mut == "1") ? "on":"off"))
+    	sendEvent(name:"mute", value: ((evt.mut == "1") ? "muted":"unmuted"))
     }
     if (evt.containsKey("src")) {
         for (def i = 1; i < 5; i++) {
@@ -171,6 +168,6 @@ def setZoneSettings(evt, name) {
 private def sendCommand(data) {
 	def zone = device.id
     
-	log.debug "Sending command(${data}, ${zone})"
+	log.debug "Sending command(${data}, for ${zone})"
 	parent.sendCommand(data, zone)
 }

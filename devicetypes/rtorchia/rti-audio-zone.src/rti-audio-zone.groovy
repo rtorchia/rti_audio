@@ -29,14 +29,23 @@ metadata {
 	)
     
     {
-        capability "Actuator"
+        //capability "Actuator"
 		capability "Switch"
-        capability "Sensor"
-		capability "Audio Mute"
-        capability "Audio Volume"
-        capability "Media Input Source"
+        //capability "Sensor"
+		//capability "Audio Mute"
+        //capability "Audio Volume"
+        //capability "Media Input Source"
+        //capability "Polling"
         capability "Refresh"
 
+		attribute "power", "string"
+        attribute "source", "string"
+        attribute "mute", "string"
+        attribute "1", "string"
+        attribute "2", "string"
+        attribute "3", "string"
+        attribute "4", "string"
+        
  		command "setVolume"
         command "muteOn"
         command "muteOff"
@@ -44,19 +53,18 @@ metadata {
         command "source2"
         command "source3"
         command "source4"
-        command "setZoneSettings"
     }
         
 	tiles(scale: 2) {
-     	multiAttributeTile(name:"power", type:"generic", width:6, height:4) {
-        	tileAttribute("device.switch", key:"PRIMARY_CONTROL") {
-            	attributeState ("on",  label: "On",  action: "switch.off", icon: "st.Electronics.electronics16", backgroundColor: "#79b821")
-        		attributeState ("off", label: "Off", action: "switch.on",  icon: "st.Electronics.electronics16", backgroundColor: "#ffffff")
+     	multiAttributeTile(name:"status", type:"generic", width:6, height:4) {
+        	tileAttribute ("device.power", key:"PRIMARY_CONTROL") {
+            	attributeState ("on",  label: "On",  action: "off", icon: "st.Electronics.electronics16", backgroundColor: "#79b821")
+        		attributeState ("off", label: "Off", action: "on",  icon: "st.Electronics.electronics16", backgroundColor: "#ffffff")
             }
       		tileAttribute ("device.source", key: "SECONDARY_CONTROL") {
-        		attributeState "source", label:'${currentValue}'
+        		attributeState ("source", label:'${currentValue}')
       		}
-		}        
+        }
         valueTile ("volumeLabel", "device.volumeLabel", decoration: "flat", height: 1, width: 2) {
       		state ("volumeLabel", label: "Volume :")
     	}
@@ -83,14 +91,11 @@ metadata {
       		state ("off", label: "Source 4", action: "source4", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/indicator-dot-gray.png", backgroundColor: "#ffffff")
     	  	state ("on", label: "Source 4", action: "source4", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/indicator-dot-green.png", backgroundColor: "#ffffff")
     	}
-//        standardTile ("refresh", "device.getStatus", width: 2, height: 2, inactiveLabel: false, decoration: "flat") {
-//      		state ("default", label: "Refresh", action: "getStatus", icon: "st.secondary.refresh-icon", backgroundColor: "#ffffff")
-//    	}
 		standardTile("refresh", "device.refresh", width: 2, height: 2, decoration: "flat") {
         	state "default", label:"Refresh", action:"refresh.refresh", icon:"st.secondary.refresh-icon"
         }
-		main "switch"
-  		details (["power", "volumeLabel", "volume", "mute", "1", "2", "3", "4", "refresh"])
+		main "status"
+  		details (["status", "volumeLabel", "volume", "mute", "1", "2", "3", "4", "refresh"])
 	}
 }
 
@@ -121,7 +126,8 @@ def source4() {
 }
 def setVolume(value) {
 	sendCommand(["volume": "${value}"])
-    setZoneSettings(["vol": "${value}"], null)
+    //setZoneSettings(["vol": "${value}"], null)
+    sendEvent(name: "volume", value: value)
 }
 def muteOn() {
 	sendCommand(["mute": "1"])
@@ -141,7 +147,7 @@ def setZoneSettings(evt, name) {
     log.debug "Received update config: ${evt}, ${name}"
     
     if (evt.containsKey("pwr")) {
-		sendEvent(name: "switch", value: ((evt.pwr == "1") ? "on" : "off"))
+		sendEvent(name: "power", value: ((evt.pwr == "1") ? "on" : "off"))
     }
 	if (evt.containsKey("vol")) {
         def vol = Math.round((1-(evt.vol.toInteger()/75))*100)
@@ -156,7 +162,7 @@ def setZoneSettings(evt, name) {
    	        	state.source = i
                 state.sourceName = name
                 sendEvent(name: "source${i}", value: "on")
-            	sendEvent(name: "source", value: "Source: ${i}: ${name}")
+            	sendEvent(name: "source", value: "Source ${i}: ${name}")
             }
             else {
             	sendEvent(name: "source${i}", value: "off")

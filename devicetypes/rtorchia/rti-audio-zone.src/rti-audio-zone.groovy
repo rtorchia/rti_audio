@@ -23,30 +23,32 @@
  */
 metadata {
 	definition (
-        name:       "RTI Audio Zone", 
-        namespace:  "rtorchia", 
-        author:     "Ralph Torchia",		
+        name:          "RTI Audio Zone", 
+        namespace:     "rtorchia", 
+        author:        "Ralph Torchia",
+        ocfDeviceType: "oic.d.receiver",
+        vid:           "e0e2d839-53a3-332d-9c2d-655e9502ab38",
+        mnmn:          "SmartThingsCommunity"
 	)
     
     {
-        //capability "Actuator"
 		capability "Switch"
-        //capability "Sensor"
-		//capability "Audio Mute"
-        //capability "Audio Volume"
-        //capability "Media Input Source"
-        //capability "Polling"
+		capability "Audio Mute"
+        capability "pizzafiber16443.audioVolume"
+        capability "pizzafiber16443.audioSources"
         capability "Refresh"
 
 		attribute "power", "string"
         attribute "source", "string"
-        attribute "mute", "string"
         attribute "1", "string"
         attribute "2", "string"
         attribute "3", "string"
         attribute "4", "string"
         
- 		command "setVolume"
+ 		command "setAudioVolume"
+        command "setAudioSources"
+        command "powerOn"
+        command "powerOff"
         command "muteOn"
         command "muteOff"
     	command "source1"
@@ -58,8 +60,8 @@ metadata {
 	tiles(scale: 2) {
      	multiAttributeTile(name:"status", type:"generic", width:6, height:4) {
         	tileAttribute ("device.power", key:"PRIMARY_CONTROL") {
-            	attributeState ("on",  label: "On",  action: "off", icon: "st.Electronics.electronics16", backgroundColor: "#79b821")
-        		attributeState ("off", label: "Off", action: "on",  icon: "st.Electronics.electronics16", backgroundColor: "#ffffff")
+            	attributeState ("powerOn",  label: "On",  action: "powerOff", icon: "st.Electronics.electronics16", backgroundColor: "#79b821")
+        		attributeState ("powerOff", label: "Off", action: "powerOn",  icon: "st.Electronics.electronics16", backgroundColor: "#ffffff")
             }
       		tileAttribute ("device.source", key: "SECONDARY_CONTROL") {
         		attributeState ("source", label:'${currentValue}')
@@ -68,10 +70,10 @@ metadata {
         valueTile ("volumeLabel", "device.volumeLabel", decoration: "flat", height: 1, width: 2) {
       		state ("volumeLabel", label: "Volume :")
     	}
-        controlTile ("volume", "device.volume", "slider", height: 1, width: 4, range: "(0..100)") {
-      		state ("volume", label: "Volume", action: "setVolume", unit: "%", backgroundColor: "#00a0dc")
+        controlTile ("audioVolume", "device.audioVolume", "slider", height: 1, width: 4, range: "(0..100)") {
+      		state ("audioVolume", label: "Volume", action: "setAudioVolume", unit: "%", backgroundColor: "#00a0dc")
     	}
-        standardTile ("mute", "device.mute", decoration: "flat", width: 2, height: 2) {
+        standardTile ("audioMute", "device.mute", decoration: "flat", width: 2, height: 2) {
       		state ("unmuted", label:"Unmuted", action: "muteOn", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/mute-off.png", backgroundColor: "#ffffff")
       		state ("muted", label:"Muted", action: "muteOff", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/mute-on.png", backgroundColor: "#ffffff")
     	}
@@ -95,18 +97,34 @@ metadata {
         	state "default", label:"Refresh", action:"refresh.refresh", icon:"st.secondary.refresh-icon"
         }
 		main "status"
-  		details (["status", "volumeLabel", "volume", "mute", "1", "2", "3", "4", "refresh"])
+  		details (["status", "volumeLabel", "audioVolume", "audioMute", "1", "2", "3", "4", "refresh"])
 	}
 }
 
 // map metadata to action calls
 def on() {
-	sendCommand(["power": "1"])
-    setZoneSettings(["pwr": "1"], null)
+	powerOn()
 }
 def off() {
-	sendCommand(["power": "0"])
+	powerOff()
+}
+
+def mute() {
+	muteOn()
+}
+def unmute() {
+	muteOff()
+}
+
+def powerOn() {
+    setZoneSettings(["pwr": "1"], null)
+	sendCommand(["power": "1"])
+    sendEvent(name: "switch", value: "on")
+}
+def powerOff() {
     setZoneSettings(["pwr": "0"], null)
+	sendCommand(["power": "0"])
+    sendEvent(name: "switch", value: "off")
 }
 def source1() {
 	sendCommand(["source": "1"])
@@ -124,17 +142,26 @@ def source4() {
 	sendCommand(["source": "4"])
     setZoneSettings(["src": "4"], parent.getSourceName("4"))
 }
-def setVolume(value) {
+def setAudioVolume(value) {
 	sendCommand(["volume": "${value}"])
     //setZoneSettings(["vol": "${value}"], null)
-    sendEvent(name: "volume", value: value)
+    sendEvent(name: "audioVolume", value: value)
 }
+def setAudioSources(String value) {
+    def sourceName = parent.getSourceName("${value}")
+	sendCommand(["source": value])
+	setZoneSettings(["src": "${value}"], sourceName)
+    sendEvent(name: "audioSources", value: sourceName)	
+}
+
 def muteOn() {
-	sendCommand(["mute": "1"])
+    sendCommand(["mute": "1"])
+    sendEvent(name: "mute", value: "on")
     setZoneSettings(["mut": "1"], null)
 }
 def muteOff() {
 	sendCommand(["mute":"0"])
+    sendEvent(name: "mute", value: "off")
     setZoneSettings(["mut": "0"], null)
 }
 
@@ -147,13 +174,14 @@ def setZoneSettings(evt, name) {
     log.debug "Received update config: ${evt}, ${name}"
     
     if (evt.containsKey("pwr")) {
-		sendEvent(name: "power", value: ((evt.pwr == "1") ? "on" : "off"))
+		sendEvent(name: "power", value: ((evt.pwr == "1") ? "powerOn" : "powerOff"))
     }
 	if (evt.containsKey("vol")) {
         def vol = Math.round((1-(evt.vol.toInteger()/75))*100)
-        sendEvent(name: "volume", value: vol)
+        sendEvent(name: "audioVolume", value: vol)
     }
     if (evt.containsKey("mut")) {
+        log.debug "sendEvent mut == ${evt.mut}"
     	sendEvent(name:"mute", value: ((evt.mut == "1") ? "muted":"unmuted"))
     }
     if (evt.containsKey("src")) {
@@ -163,6 +191,7 @@ def setZoneSettings(evt, name) {
                 state.sourceName = name
                 sendEvent(name: "source${i}", value: "on")
             	sendEvent(name: "source", value: "Source ${i}: ${name}")
+                sendEvent(name: "audioSources", value: "${name}", descriptionState: "Source ${i}: ${name}")
             }
             else {
             	sendEvent(name: "source${i}", value: "off")
@@ -171,7 +200,7 @@ def setZoneSettings(evt, name) {
     }
 }
 
-private def sendCommand(data) {
+def sendCommand(data) {
 	def zone = device.id
     
 	log.debug "Sending command(${data}, for ${zone})"

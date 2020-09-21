@@ -26,16 +26,16 @@ metadata {
         name:          "RTI Audio Zone", 
         namespace:     "rtorchia", 
         author:        "Ralph Torchia",
-        ocfDeviceType: "oic.d.receiver",
-        vid:           "e0e2d839-53a3-332d-9c2d-655e9502ab38",
+        ocfDeviceType: "oic.d.networkaudio",
+        vid:           "6f089406-ab70-3814-8294-3928dda5c1ca",
         mnmn:          "SmartThingsCommunity"
 	)
     
     {
 		capability "Switch"
 		capability "Audio Mute"
-        capability "pizzafiber16443.audioVolume"
         capability "pizzafiber16443.audioSources"
+        capability "Audio Volume"
         capability "Refresh"
 
 		attribute "power", "string"
@@ -73,7 +73,7 @@ metadata {
         controlTile ("audioVolume", "device.audioVolume", "slider", height: 1, width: 4, range: "(0..100)") {
       		state ("audioVolume", label: "Volume", action: "setAudioVolume", unit: "%", backgroundColor: "#00a0dc")
     	}
-        standardTile ("audioMute", "device.mute", decoration: "flat", width: 2, height: 2) {
+        standardTile ("mute", "device.mute", decoration: "flat", width: 2, height: 2) {
       		state ("unmuted", label:"Unmuted", action: "muteOn", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/mute-off.png", backgroundColor: "#ffffff")
       		state ("muted", label:"Muted", action: "muteOff", icon: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/mute-on.png", backgroundColor: "#ffffff")
     	}
@@ -97,7 +97,7 @@ metadata {
         	state "default", label:"Refresh", action:"refresh.refresh", icon:"st.secondary.refresh-icon"
         }
 		main "status"
-  		details (["status", "volumeLabel", "audioVolume", "audioMute", "1", "2", "3", "4", "refresh"])
+  		details (["status", "volumeLabel", "audioVolume", "mute", "1", "2", "3", "4", "refresh"])
 	}
 }
 
@@ -142,6 +142,11 @@ def source4() {
 	sendCommand(["source": "4"])
     setZoneSettings(["src": "4"], parent.getSourceName("4"))
 }
+
+def setVolume(value) {
+	sendCommand(["volume": "${value}"])
+    sendEvent(name: "volume", value: value)
+}
 def setAudioVolume(value) {
 	sendCommand(["volume": "${value}"])
     //setZoneSettings(["vol": "${value}"], null)
@@ -165,6 +170,10 @@ def muteOff() {
     setZoneSettings(["mut": "0"], null)
 }
 
+def updated() {
+	refresh()
+}
+
 def refresh() {
 	log.debug "Retrieving status update"
     parent.getCurrentConfig()
@@ -179,6 +188,7 @@ def setZoneSettings(evt, name) {
 	if (evt.containsKey("vol")) {
         def vol = Math.round((1-(evt.vol.toInteger()/75))*100)
         sendEvent(name: "audioVolume", value: vol)
+        sendEvent(name: "volume", value: vol)
     }
     if (evt.containsKey("mut")) {
         log.debug "sendEvent mut == ${evt.mut}"

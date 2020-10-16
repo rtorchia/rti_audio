@@ -35,8 +35,8 @@ metadata {
 	)
     
     {
-		capability "Switch"
-		capability "Audio Mute"
+	capability "Switch"
+	capability "Audio Mute"
         capability "Audio Volume"
         capability "pizzafiber16443.audioSources"
         capability "Refresh"
@@ -47,14 +47,14 @@ metadata {
 
 // map to capability calls
 def on() {
-	setZoneSettings(["pwr": "1"], null)
-	sendCommand(["power": "1"])
+    setZoneSettings(["pwr": "1"], null)
+    sendCommand(["power": "1"])
     sendEvent(name: "switch", value: "on")
 }
 
 def off() {
     setZoneSettings(["pwr": "0"], null)
-	sendCommand(["power": "0"])
+    sendCommand(["power": "0"])
     sendEvent(name: "switch", value: "off")
 }
 
@@ -65,29 +65,29 @@ def mute() {
 }
 
 def unmute() {
-	sendCommand(["mute":"0"])
+    sendCommand(["mute":"0"])
     sendEvent(name: "mute", value: "off")
     setZoneSettings(["mut": "0"], null)
 }
 
 def setVolume(value) {
-	sendCommand(["volume": "${value}"])
+    sendCommand(["volume": "${value}"])
     sendEvent(name: "volume", value: value)
 }
 
 def setAudioSources(String value) {
     def sourceName = parent.getSourceName("${value}")
-	sendCommand(["source": value])
-	setZoneSettings(["src": "${value}"], sourceName)
+    sendCommand(["source": value])
+    setZoneSettings(["src": "${value}"], sourceName)
     sendEvent(name: "audioSources", value: sourceName)	
 }
 
 def updated() {
-	refresh()
+    refresh()
 }
 
 def refresh() {
-	log.debug "Retrieving status update"
+    log.debug "Retrieving status update"
     parent.getCurrentConfig()
 }
 
@@ -96,7 +96,7 @@ def setZoneSettings(evt, name) {
     log.debug "Received update config: ${evt}, ${name}"
     
     if (evt.containsKey("pwr")) {
-		sendEvent(name: "power", value: ((evt.pwr == "1") ? "powerOn" : "powerOff"))
+	sendEvent(name: "power", value: ((evt.pwr == "1") ? "powerOn" : "powerOff"))
     }
 	if (evt.containsKey("vol")) {
         def vol = Math.round((1-(evt.vol.toInteger()/75))*100)
@@ -110,7 +110,7 @@ def setZoneSettings(evt, name) {
     if (evt.containsKey("src")) {
         for (def i = 1; i < 5; i++) {
             if (i == evt.src.toInteger()) {
-   	        	state.source = i
+         	state.source = i
                 state.sourceName = name
                 sendEvent(name: "source${i}", value: "on")
             	sendEvent(name: "source", value: "Source ${i}: ${name}")

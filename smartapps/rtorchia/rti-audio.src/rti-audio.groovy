@@ -22,9 +22,9 @@ definition(
     author: "Ralph Torchia",
     description: "Integrate and control RTI audio distribution system",
     category: "My Apps",
-    iconUrl: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/rti_logo.png",
-    iconX2Url: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/rti_logo.png",
-    iconX3Url: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/rti_logo.png",
+    iconUrl: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/rti_logo2.png",
+    iconX2Url: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/rti_logo2.png",
+    iconX3Url: "https://raw.githubusercontent.com/rtorchia/rti_audio/master/resources/images/rti_logo2.png",
     singleinstance: true
 )
 
